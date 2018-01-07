@@ -97,11 +97,6 @@
 
 #define TAG "i2c-lcd1602"
 
-#define NUM_ROWS            2
-#define NUM_COLUMNS         40
-#define NUM_VISIBLE_COLUMNS 16
-
-
 // Delays (microseconds)
 #define DELAY_POWER_ON            50000  // wait at least 40us after VCC rises to 2.7V
 #define DELAY_INIT_1               4500  // wait at least 4.1ms (fig 24, page 46)
@@ -358,13 +353,13 @@ esp_err_t i2c_lcd1602_move_cursor(const i2c_lcd1602_info_t * i2c_lcd1602_info, u
     if (_is_init(i2c_lcd1602_info))
     {
         const int row_offsets[] = { 0x00, 0x40, 0x14, 0x54 };
-        if (row > NUM_ROWS)
+        if (row > I2C_LCD1602_NUM_ROWS)
         {
-            row = NUM_ROWS - 1;
+            row = I2C_LCD1602_NUM_ROWS - 1;
         }
-        if (col > NUM_COLUMNS)
+        if (col > I2C_LCD1602_NUM_COLUMNS)
         {
-            col = NUM_COLUMNS - 1;
+            col = I2C_LCD1602_NUM_COLUMNS - 1;
         }
         _write_command(i2c_lcd1602_info, COMMAND_SET_DDRAM_ADDR | (col + row_offsets[row]));
     }

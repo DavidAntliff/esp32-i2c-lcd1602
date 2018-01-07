@@ -54,6 +54,10 @@ typedef struct
     uint8_t entry_mode_flags;                     ///< Currently active entry mode flags
 } i2c_lcd1602_info_t;
 
+#define I2C_LCD1602_NUM_ROWS            2
+#define I2C_LCD1602_NUM_COLUMNS         40
+#define I2C_LCD1602_NUM_VISIBLE_COLUMNS 16
+
 // Special characters for ROM Code A00
 #define I2C_LCD1602_CHARACTER_ALPHA        0b11100000
 #define I2C_LCD1602_CHARACTER_BETA         0b11100010
