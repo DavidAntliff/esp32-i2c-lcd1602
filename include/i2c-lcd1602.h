@@ -47,16 +47,16 @@ extern "C" {
  */
 typedef struct
 {
-    bool init;                                    ///< True if struct has been initialised, otherwise false
-    smbus_info_t * smbus_info;                    ///< Pointer to associated SMBus info
-    uint8_t backlight_flag;                       ///< Non-zero if backlight is to be enabled, otherwise zero
-    uint8_t display_control_flags;                ///< Currently active display control flags
-    uint8_t entry_mode_flags;                     ///< Currently active entry mode flags
+    bool init;                                          ///< True if struct has been initialised, otherwise false
+    smbus_info_t * smbus_info;                          ///< Pointer to associated SMBus info
+    uint8_t backlight_flag;                             ///< Non-zero if backlight is to be enabled, otherwise zero
+    uint8_t display_control_flags;                      ///< Currently active display control flags
+    uint8_t entry_mode_flags;                           ///< Currently active entry mode flags
 } i2c_lcd1602_info_t;
 
-#define I2C_LCD1602_NUM_ROWS            2               ///< Maximum number of supported rows for this device
-#define I2C_LCD1602_NUM_COLUMNS         40              ///< Maximum number of supported columns for this device
-#define I2C_LCD1602_NUM_VISIBLE_COLUMNS 16              ///< Number of columns visible at any one time
+#define I2C_LCD1602_NUM_ROWS               2            ///< Maximum number of supported rows for this device
+#define I2C_LCD1602_NUM_COLUMNS            40           ///< Maximum number of supported columns for this device
+#define I2C_LCD1602_NUM_VISIBLE_COLUMNS    16           ///< Number of columns visible at any one time
 
 // Special characters for ROM Code A00
 #define I2C_LCD1602_CHARACTER_ALPHA        0b11100000   ///< Lower-case alpha symbol
@@ -73,6 +73,21 @@ typedef struct
 #define I2C_LCD1602_CHARACTER_DOT          0b10100101   ///< Centred dot symbol
 #define I2C_LCD1602_CHARACTER_DIVIDE       0b11111101   ///< Division sign symbol
 #define I2C_LCD1602_CHARACTER_BLOCK        0b11111111   ///< 5x8 filled block
+
+/**
+ * @brief Enum of valid indexes for definitions of user-defined characters.
+ */
+typedef enum
+{
+    I2C_LCD1602_INDEX_CUSTOM_0 = 0,                     ///< Index of first user-defined custom symbol
+    I2C_LCD1602_INDEX_CUSTOM_1,                         ///< Index of second user-defined custom symbol
+    I2C_LCD1602_INDEX_CUSTOM_2,                         ///< Index of third user-defined custom symbol
+    I2C_LCD1602_INDEX_CUSTOM_3,                         ///< Index of fourth user-defined custom symbol
+    I2C_LCD1602_INDEX_CUSTOM_4,                         ///< Index of fifth user-defined custom symbol
+    I2C_LCD1602_INDEX_CUSTOM_5,                         ///< Index of sixth user-defined custom symbol
+    I2C_LCD1602_INDEX_CUSTOM_6,                         ///< Index of seventh user-defined custom symbol
+    I2C_LCD1602_INDEX_CUSTOM_7,                         ///< Index of eighth user-defined custom symbol
+} i2c_lcd1602_custom_index_t;
 
 #define I2C_LCD1602_CHARACTER_CUSTOM_0     0b00000000   ///< User-defined custom symbol in index 0
 #define I2C_LCD1602_CHARACTER_CUSTOM_1     0b00000001   ///< User-defined custom symbol in index 1
@@ -259,7 +274,7 @@ esp_err_t i2c_lcd1602_move_cursor_right(const i2c_lcd1602_info_t * i2c_lcd1602_i
  * @param[in] pixelmap An 8-byte array defining the pixel map for the new character definition.
  * @return ESP_OK if successful, otherwise an error constant.
  */
-esp_err_t i2c_lcd1602_define_char(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t index, uint8_t pixelmap[]);
+esp_err_t i2c_lcd1602_define_char(const i2c_lcd1602_info_t * i2c_lcd1602_info, i2c_lcd1602_custom_index_t index, uint8_t pixelmap[]);
 
 /**
  * @brief Write a single character to the display at the current position of the cursor.

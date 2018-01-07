@@ -488,7 +488,7 @@ esp_err_t i2c_lcd1602_move_cursor_right(const i2c_lcd1602_info_t * i2c_lcd1602_i
     return err;
 }
 
-esp_err_t i2c_lcd1602_define_char(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t index, uint8_t pixelmap[])
+esp_err_t i2c_lcd1602_define_char(const i2c_lcd1602_info_t * i2c_lcd1602_info, i2c_lcd1602_custom_index_t index, uint8_t pixelmap[])
 {
     esp_err_t err = ESP_FAIL;
     if (_is_init(i2c_lcd1602_info))
