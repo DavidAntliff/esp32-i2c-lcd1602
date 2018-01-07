@@ -23,8 +23,9 @@
  */
 
 /**
- * @file i2c-lcd1602.c
+ * @file
  *
+ * @brief
  * The LCD1602 controller is an HD44780-compatible controller that normally operates
  * via an 8-bit or 4-bit wide parallel bus.
  *
@@ -121,10 +122,10 @@
 #define COMMAND_SET_DDRAM_ADDR      0x80
 
 // COMMAND_ENTRY_MODE_SET flags
-#define FLAG_ENTRY_MODE_SET_ENTRY_LEFT            0x02
-#define FLAG_ENTRY_MODE_SET_ENTRY_RIGHT           0x00
-#define FLAG_ENTRY_MODE_SET_ENTRY_SHIFT_INCREMENT 0x01
-#define FLAG_ENTRY_MODE_SET_ENTRY_SHIFT_DECREMENT 0x00
+#define FLAG_ENTRY_MODE_SET_ENTRY_INCREMENT       0x02
+#define FLAG_ENTRY_MODE_SET_ENTRY_DECREMENT       0x00
+#define FLAG_ENTRY_MODE_SET_ENTRY_SHIFT_ON        0x01
+#define FLAG_ENTRY_MODE_SET_ENTRY_SHIFT_OFF       0x00
 
 // COMMAND_DISPLAY_CONTROL flags
 #define FLAG_DISPLAY_CONTROL_DISPLAY_ON  0x04
@@ -284,7 +285,7 @@ esp_err_t i2c_lcd1602_init(i2c_lcd1602_info_t * i2c_lcd1602_info, smbus_info_t *
         i2c_lcd1602_info->display_control_flags = FLAG_DISPLAY_CONTROL_DISPLAY_ON | FLAG_DISPLAY_CONTROL_CURSOR_OFF | FLAG_DISPLAY_CONTROL_BLINK_OFF;
 
         // left-justified left-to-right text
-        i2c_lcd1602_info->entry_mode_flags = FLAG_ENTRY_MODE_SET_ENTRY_LEFT | FLAG_ENTRY_MODE_SET_ENTRY_SHIFT_DECREMENT;
+        i2c_lcd1602_info->entry_mode_flags = FLAG_ENTRY_MODE_SET_ENTRY_INCREMENT | FLAG_ENTRY_MODE_SET_ENTRY_SHIFT_OFF;
 
         i2c_lcd1602_info->init = true;
 
@@ -415,7 +416,7 @@ esp_err_t i2c_lcd1602_set_left_to_right(i2c_lcd1602_info_t * i2c_lcd1602_info)
     esp_err_t err = ESP_FAIL;
     if (_is_init(i2c_lcd1602_info))
     {
-        i2c_lcd1602_info->entry_mode_flags |= FLAG_ENTRY_MODE_SET_ENTRY_LEFT;
+        i2c_lcd1602_info->entry_mode_flags |= FLAG_ENTRY_MODE_SET_ENTRY_INCREMENT;
         _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags);
     }
     return err;
@@ -426,7 +427,7 @@ esp_err_t i2c_lcd1602_set_right_to_left(i2c_lcd1602_info_t * i2c_lcd1602_info)
     esp_err_t err = ESP_FAIL;
     if (_is_init(i2c_lcd1602_info))
     {
-        i2c_lcd1602_info->entry_mode_flags &= ~FLAG_ENTRY_MODE_SET_ENTRY_LEFT;
+        i2c_lcd1602_info->entry_mode_flags &= ~FLAG_ENTRY_MODE_SET_ENTRY_INCREMENT;
         _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags);
     }
     return err;
@@ -437,7 +438,7 @@ esp_err_t i2c_lcd1602_set_auto_scroll(i2c_lcd1602_info_t * i2c_lcd1602_info, boo
     esp_err_t err = ESP_FAIL;
     if (_is_init(i2c_lcd1602_info))
     {
-        i2c_lcd1602_info->entry_mode_flags = _set_or_clear(i2c_lcd1602_info->entry_mode_flags, enable, FLAG_ENTRY_MODE_SET_ENTRY_SHIFT_INCREMENT);
+        i2c_lcd1602_info->entry_mode_flags = _set_or_clear(i2c_lcd1602_info->entry_mode_flags, enable, FLAG_ENTRY_MODE_SET_ENTRY_SHIFT_ON);
         _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags);
     }
     return err;
@@ -487,7 +488,7 @@ esp_err_t i2c_lcd1602_move_cursor_right(const i2c_lcd1602_info_t * i2c_lcd1602_i
     return err;
 }
 
-esp_err_t i2c_lcd1602_create_char(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t index, uint8_t pixelmap[])
+esp_err_t i2c_lcd1602_define_char(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t index, uint8_t pixelmap[])
 {
     esp_err_t err = ESP_FAIL;
     if (_is_init(i2c_lcd1602_info))
