@@ -1,5 +1,7 @@
 # esp32-i2c-lcd1602
 
+[![Build Status](https://travis-ci.org/DavidAntliff/esp32-i2c-lcd1602.svg?branch=master)](https://travis-ci.org/DavidAntliff/esp32-i2c-lcd1602)
+
 ## Introduction
 
 This component provides useful access functions for the I2C-LCD1602 device, which is compatible with the HD44780 LCD controller. It uses a PCF8574A Remote 8-bit I/O Expander over the I2C bus, allowing the controller to be programmed via I2C using 4-bit mode.
