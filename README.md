@@ -14,11 +14,19 @@ Requires [esp32-smbus](https://github.com/DavidAntliff/esp32-smbus).
 
 ## Example
 
-An example of this component in use can be found at [DavidAntliff/esp32-i2c-lcd1602-example](https://github.com/DavidAntliff/esp32-i2c-lcd1602-example)
+An example of this component in use can be found at [DavidAntliff/esp32-i2c-lcd1602-example](https://github.com/DavidAntliff/esp32-i2c-lcd1602-example).
 
 ## Features
 
- * ...
+ * Supports 16x2 LCD modules commonly found on Ebay and AliExpress, via a PCF8574A I/O Expander over the I2C bus (4-bit mode).
+ * Backlight control.
+ * Supports dynamic and static allocation of device instance, with no global variables.
+ * Works with multiple displays (set unique I2C addresses for each device). 
+ * Supports all HD44780-compatible features except for retrieval of data from the device.
+ * Provides some symbolic definitions for commmonly used characters (ROM Code A00: English/Asian character set).
+
+Access to different types of LCD1602 modules is limited so this library may not work correctly (or at all) with your module. If that is the case,
+please file an [issue](https://github.com/DavidAntliff/esp32-i2c-lcd1602/issues) and perhaps I can help you get it working.
 
 ## Documentation
 
@@ -40,7 +48,7 @@ The code in this project is licensed under the MIT license - see LICENSE for det
  
 ## Acknowledgements
 
- * Based partially on the Arduino [DFRobot sample code](http://www.dfrobot.com/image/data/DFR0154/LiquidCrystal_I2Cv1-1.rar).
+ * Inspired by the Arduino [DFRobot sample code](http://www.dfrobot.com/image/data/DFR0154/LiquidCrystal_I2Cv1-1.rar).
  * "SMBus" is a trademark of Intel Corporation.
  * "I2C" is a registered trademark of Phillips Corporation.
 
@@ -48,7 +56,7 @@ The code in this project is licensed under the MIT license - see LICENSE for det
 
 The following features are anticipated but not yet implemented:
 
- * ...
-
-
- 
+ * Checking of Busy Flag for more efficient access.
+ * Retrieval of data from the device.
+ * ROM Code A02 symbolic definitions.
+ * Direct (parallel, no I2C) access via 4-bit and 8-bit modes.
