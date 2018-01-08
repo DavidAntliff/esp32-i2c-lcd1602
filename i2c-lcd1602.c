@@ -194,51 +194,66 @@ static bool _is_init(const i2c_lcd1602_info_t * i2c_lcd1602_info)
  }
 
 // send data to the I/O Expander
-static void _write_to_expander(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t data)
+static esp_err_t _write_to_expander(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t data)
 {
     // backlight flag must be included with every write to maintain backlight state
     ESP_LOGD(TAG, "_write_to_expander 0x%02x", data | i2c_lcd1602_info->backlight_flag);
-    smbus_send_byte(i2c_lcd1602_info->smbus_info, data | i2c_lcd1602_info->backlight_flag);
+    return smbus_send_byte(i2c_lcd1602_info->smbus_info, data | i2c_lcd1602_info->backlight_flag);
 }
 
 // clock data from expander to LCD by causing a falling edge on Enable
-static void _strobe_enable(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t data)
+static esp_err_t _strobe_enable(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t data)
 {
-    _write_to_expander(i2c_lcd1602_info, data | FLAG_ENABLE);
-    ets_delay_us(DELAY_ENABLE_PULSE_WIDTH);
-    _write_to_expander(i2c_lcd1602_info, data & ~FLAG_ENABLE);
-    ets_delay_us(DELAY_ENABLE_PULSE_SETTLE);
-    ESP_LOGD(TAG, "enable strobed");
+    esp_err_t err = _write_to_expander(i2c_lcd1602_info, data | FLAG_ENABLE);
+    if (err == ESP_OK)
+    {
+        ets_delay_us(DELAY_ENABLE_PULSE_WIDTH);
+        err = _write_to_expander(i2c_lcd1602_info, data & ~FLAG_ENABLE);
+        if (err == ESP_OK)
+        {
+            ets_delay_us(DELAY_ENABLE_PULSE_SETTLE);
+            ESP_LOGD(TAG, "enable strobed");
+        }
+    }
+    return err;
 }
 
 // send top nibble to the LCD controller
-static void _write_top_nibble(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t data)
+static esp_err_t _write_top_nibble(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t data)
 {
     ESP_LOGD(TAG, "_write_top_nibble 0x%02x", data);
-    _write_to_expander(i2c_lcd1602_info, data);
-    _strobe_enable(i2c_lcd1602_info, data);
+    esp_err_t err = _write_to_expander(i2c_lcd1602_info, data);
+    if (err == ESP_OK)
+    {
+        err = _strobe_enable(i2c_lcd1602_info, data);
+    }
+    return err;
 }
 
 // send command or data to controller
-static void _write(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t value, uint8_t register_select_flag)
+static esp_err_t _write(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t value, uint8_t register_select_flag)
 {
     ESP_LOGD(TAG, "_write 0x%02x | 0x%02x", value, register_select_flag);
-    _write_top_nibble(i2c_lcd1602_info, (value & 0xf0) | register_select_flag);
-    _write_top_nibble(i2c_lcd1602_info, ((value & 0x0f) << 4) | register_select_flag);
+    esp_err_t err = _write_top_nibble(i2c_lcd1602_info, (value & 0xf0) | register_select_flag);
+    if (err == ESP_OK)
+    {
+        err = _write_top_nibble(i2c_lcd1602_info, ((value & 0x0f) << 4) | register_select_flag);
+    }
+    return err;
 }
 
 // send command to controller
-static void _write_command(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t command)
+static esp_err_t _write_command(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t command)
 {
     ESP_LOGD(TAG, "_write_command 0x%02x", command);
-    _write(i2c_lcd1602_info, command, FLAG_RS_COMMAND);
+    return _write(i2c_lcd1602_info, command, FLAG_RS_COMMAND);
 }
 
 // send data to controller
-static void _write_data(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t data)
+static esp_err_t _write_data(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t data)
 {
     ESP_LOGD(TAG, "_write_data 0x%02x", data);
-    _write(i2c_lcd1602_info, data, FLAG_RS_DATA);
+    return _write(i2c_lcd1602_info, data, FLAG_RS_DATA);
 }
 
 
@@ -295,28 +310,50 @@ esp_err_t i2c_lcd1602_init(i2c_lcd1602_info_t * i2c_lcd1602_info, smbus_info_t *
         ets_delay_us(DELAY_POWER_ON);
 
         // put Expander into known state - Register Select and Read/Write both low
-        _write_to_expander(i2c_lcd1602_info, 0);
-        ets_delay_us(1000);
+        err = _write_to_expander(i2c_lcd1602_info, 0);
+        if (err == ESP_OK)
+        {
+            ets_delay_us(1000);
 
-        // select 4-bit mode on LCD controller - see datasheet page 46, figure 24.
-        _write_top_nibble(i2c_lcd1602_info, 0x03 << 4);
-        ets_delay_us(DELAY_INIT_1);
-        _write_top_nibble(i2c_lcd1602_info, 0x03 << 4);  // repeat
-        ets_delay_us(DELAY_INIT_2);
-        _write_top_nibble(i2c_lcd1602_info, 0x03 << 4);  // repeat
-        ets_delay_us(DELAY_INIT_3);
-        _write_top_nibble(i2c_lcd1602_info, 0x02 << 4);  // select 4-bit mode
-
-        // now we can use the command()/write() functions
-        _write_command(i2c_lcd1602_info, COMMAND_FUNCTION_SET | FLAG_FUNCTION_SET_MODE_4BIT | FLAG_FUNCTION_SET_LINES_2 | FLAG_FUNCTION_SET_DOTS_5X8);
-
-        _write_command(i2c_lcd1602_info, COMMAND_DISPLAY_CONTROL | i2c_lcd1602_info->display_control_flags);
-
-        i2c_lcd1602_clear(i2c_lcd1602_info);
-
-        _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags);
-
-        i2c_lcd1602_home(i2c_lcd1602_info);
+            // select 4-bit mode on LCD controller - see datasheet page 46, figure 24.
+            err = _write_top_nibble(i2c_lcd1602_info, 0x03 << 4);
+            if (err == ESP_OK)
+            {
+                ets_delay_us(DELAY_INIT_1);
+                err = _write_top_nibble(i2c_lcd1602_info, 0x03 << 4);  // repeat
+                if (err == ESP_OK)
+                {
+                    ets_delay_us(DELAY_INIT_2);
+                    err = _write_top_nibble(i2c_lcd1602_info, 0x03 << 4);  // repeat
+                    if (err == ESP_OK)
+                    {
+                        ets_delay_us(DELAY_INIT_3);
+                        err = _write_top_nibble(i2c_lcd1602_info, 0x02 << 4);  // select 4-bit mode
+                        if (err == ESP_OK)
+                        {
+                            // now we can use the command()/write() functions
+                            err = _write_command(i2c_lcd1602_info, COMMAND_FUNCTION_SET | FLAG_FUNCTION_SET_MODE_4BIT | FLAG_FUNCTION_SET_LINES_2 | FLAG_FUNCTION_SET_DOTS_5X8);
+                            if (err == ESP_OK)
+                            {
+                                err = _write_command(i2c_lcd1602_info, COMMAND_DISPLAY_CONTROL | i2c_lcd1602_info->display_control_flags);
+                                if (err == ESP_OK)
+                                {
+                                    err = i2c_lcd1602_clear(i2c_lcd1602_info);
+                                    if (err == ESP_OK)
+                                    {
+                                        err = _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags);
+                                        if (err == ESP_OK)
+                                        {
+                                            err = i2c_lcd1602_home(i2c_lcd1602_info);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     else
     {
@@ -331,8 +368,11 @@ esp_err_t i2c_lcd1602_clear(const i2c_lcd1602_info_t * i2c_lcd1602_info)
     esp_err_t err = ESP_FAIL;
     if (_is_init(i2c_lcd1602_info))
     {
-        _write_command(i2c_lcd1602_info, COMMAND_CLEAR_DISPLAY);
-        ets_delay_us(DELAY_CLEAR_DISPLAY);
+        err = _write_command(i2c_lcd1602_info, COMMAND_CLEAR_DISPLAY);
+        if (err == ESP_OK)
+        {
+            ets_delay_us(DELAY_CLEAR_DISPLAY);
+        }
     }
     return err;
 }
@@ -342,8 +382,11 @@ esp_err_t i2c_lcd1602_home(const i2c_lcd1602_info_t * i2c_lcd1602_info)
     esp_err_t err = ESP_FAIL;
     if (_is_init(i2c_lcd1602_info))
     {
-        _write_command(i2c_lcd1602_info, COMMAND_RETURN_HOME);
-        ets_delay_us(DELAY_RETURN_HOME);
+        err = _write_command(i2c_lcd1602_info, COMMAND_RETURN_HOME);
+        if (err == ESP_OK)
+        {
+            ets_delay_us(DELAY_RETURN_HOME);
+        }
     }
     return err;
 }
@@ -362,7 +405,7 @@ esp_err_t i2c_lcd1602_move_cursor(const i2c_lcd1602_info_t * i2c_lcd1602_info, u
         {
             col = I2C_LCD1602_NUM_COLUMNS - 1;
         }
-        _write_command(i2c_lcd1602_info, COMMAND_SET_DDRAM_ADDR | (col + row_offsets[row]));
+        err = _write_command(i2c_lcd1602_info, COMMAND_SET_DDRAM_ADDR | (col + row_offsets[row]));
     }
     return err;
 }
@@ -373,7 +416,7 @@ esp_err_t i2c_lcd1602_set_backlight(i2c_lcd1602_info_t * i2c_lcd1602_info, bool 
     if (_is_init(i2c_lcd1602_info))
     {
         i2c_lcd1602_info->backlight_flag = _set_or_clear(i2c_lcd1602_info->backlight_flag, enable, FLAG_BACKLIGHT_ON);
-        _write_to_expander(i2c_lcd1602_info, 0);
+        err = _write_to_expander(i2c_lcd1602_info, 0);
     }
     return err;
 }
@@ -384,7 +427,7 @@ esp_err_t i2c_lcd1602_set_display(i2c_lcd1602_info_t * i2c_lcd1602_info, bool en
     if (_is_init(i2c_lcd1602_info))
     {
         i2c_lcd1602_info->display_control_flags = _set_or_clear(i2c_lcd1602_info->display_control_flags, enable, FLAG_DISPLAY_CONTROL_DISPLAY_ON);
-        _write_command(i2c_lcd1602_info, COMMAND_DISPLAY_CONTROL | i2c_lcd1602_info->display_control_flags);
+        err = _write_command(i2c_lcd1602_info, COMMAND_DISPLAY_CONTROL | i2c_lcd1602_info->display_control_flags);
     }
     return err;
 }
@@ -395,7 +438,7 @@ esp_err_t i2c_lcd1602_set_cursor(i2c_lcd1602_info_t * i2c_lcd1602_info, bool ena
     if (_is_init(i2c_lcd1602_info))
     {
         i2c_lcd1602_info->display_control_flags = _set_or_clear(i2c_lcd1602_info->display_control_flags, enable, FLAG_DISPLAY_CONTROL_CURSOR_ON);
-        _write_command(i2c_lcd1602_info, COMMAND_DISPLAY_CONTROL | i2c_lcd1602_info->display_control_flags);
+        err = _write_command(i2c_lcd1602_info, COMMAND_DISPLAY_CONTROL | i2c_lcd1602_info->display_control_flags);
     }
     return err;
 }
@@ -406,7 +449,7 @@ esp_err_t i2c_lcd1602_set_blink(i2c_lcd1602_info_t * i2c_lcd1602_info, bool enab
     if (_is_init(i2c_lcd1602_info))
     {
         i2c_lcd1602_info->display_control_flags = _set_or_clear(i2c_lcd1602_info->display_control_flags, enable, FLAG_DISPLAY_CONTROL_BLINK_ON);
-        _write_command(i2c_lcd1602_info, COMMAND_DISPLAY_CONTROL | i2c_lcd1602_info->display_control_flags);
+        err = _write_command(i2c_lcd1602_info, COMMAND_DISPLAY_CONTROL | i2c_lcd1602_info->display_control_flags);
     }
     return err;
 }
@@ -417,7 +460,7 @@ esp_err_t i2c_lcd1602_set_left_to_right(i2c_lcd1602_info_t * i2c_lcd1602_info)
     if (_is_init(i2c_lcd1602_info))
     {
         i2c_lcd1602_info->entry_mode_flags |= FLAG_ENTRY_MODE_SET_ENTRY_INCREMENT;
-        _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags);
+        err = _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags);
     }
     return err;
 }
@@ -428,7 +471,7 @@ esp_err_t i2c_lcd1602_set_right_to_left(i2c_lcd1602_info_t * i2c_lcd1602_info)
     if (_is_init(i2c_lcd1602_info))
     {
         i2c_lcd1602_info->entry_mode_flags &= ~FLAG_ENTRY_MODE_SET_ENTRY_INCREMENT;
-        _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags);
+        err = _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags);
     }
     return err;
 }
@@ -439,7 +482,7 @@ esp_err_t i2c_lcd1602_set_auto_scroll(i2c_lcd1602_info_t * i2c_lcd1602_info, boo
     if (_is_init(i2c_lcd1602_info))
     {
         i2c_lcd1602_info->entry_mode_flags = _set_or_clear(i2c_lcd1602_info->entry_mode_flags, enable, FLAG_ENTRY_MODE_SET_ENTRY_SHIFT_ON);
-        _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags);
+        err = _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags);
     }
     return err;
 }
@@ -450,7 +493,7 @@ esp_err_t i2c_lcd1602_scroll_display_left(const i2c_lcd1602_info_t * i2c_lcd1602
     if (_is_init(i2c_lcd1602_info))
     {
         // RAM is not changed
-        _write_command(i2c_lcd1602_info, COMMAND_SHIFT | FLAG_SHIFT_MOVE_DISPLAY | FLAG_SHIFT_MOVE_LEFT);
+        err = _write_command(i2c_lcd1602_info, COMMAND_SHIFT | FLAG_SHIFT_MOVE_DISPLAY | FLAG_SHIFT_MOVE_LEFT);
     }
     return err;
 }
@@ -461,7 +504,7 @@ esp_err_t i2c_lcd1602_scroll_display_right(const i2c_lcd1602_info_t * i2c_lcd160
     if (_is_init(i2c_lcd1602_info))
     {
         // RAM is not changed
-        _write_command(i2c_lcd1602_info, COMMAND_SHIFT | FLAG_SHIFT_MOVE_DISPLAY | FLAG_SHIFT_MOVE_RIGHT);
+        err = _write_command(i2c_lcd1602_info, COMMAND_SHIFT | FLAG_SHIFT_MOVE_DISPLAY | FLAG_SHIFT_MOVE_RIGHT);
     }
     return err;
 }
@@ -472,7 +515,7 @@ esp_err_t i2c_lcd1602_move_cursor_left(const i2c_lcd1602_info_t * i2c_lcd1602_in
     if (_is_init(i2c_lcd1602_info))
     {
         // RAM is not changed. Shift direction is inverted.
-        _write_command(i2c_lcd1602_info, COMMAND_SHIFT | FLAG_SHIFT_MOVE_CURSOR | FLAG_SHIFT_MOVE_RIGHT);
+        err = _write_command(i2c_lcd1602_info, COMMAND_SHIFT | FLAG_SHIFT_MOVE_CURSOR | FLAG_SHIFT_MOVE_RIGHT);
     }
     return err;
 }
@@ -483,7 +526,7 @@ esp_err_t i2c_lcd1602_move_cursor_right(const i2c_lcd1602_info_t * i2c_lcd1602_i
     if (_is_init(i2c_lcd1602_info))
     {
         // RAM is not changed. Shift direction is inverted.
-        _write_command(i2c_lcd1602_info, COMMAND_SHIFT | FLAG_SHIFT_MOVE_CURSOR | FLAG_SHIFT_MOVE_LEFT);
+        err = _write_command(i2c_lcd1602_info, COMMAND_SHIFT | FLAG_SHIFT_MOVE_CURSOR | FLAG_SHIFT_MOVE_LEFT);
     }
     return err;
 }
@@ -494,10 +537,10 @@ esp_err_t i2c_lcd1602_define_char(const i2c_lcd1602_info_t * i2c_lcd1602_info, i
     if (_is_init(i2c_lcd1602_info))
     {
         index &= 0x07;  // only the first 8 indexes can be used for custom characters
-        _write_command(i2c_lcd1602_info, COMMAND_SET_CGRAM_ADDR | (index << 3));
-        for (int i = 0; i < 8; ++i)
+        err = _write_command(i2c_lcd1602_info, COMMAND_SET_CGRAM_ADDR | (index << 3));
+        for (int i = 0; err == ESP_OK && i < 8; ++i)
         {
-            _write_data(i2c_lcd1602_info, pixelmap[i]);
+            err = _write_data(i2c_lcd1602_info, pixelmap[i]);
         }
     }
     return err;
@@ -508,7 +551,7 @@ esp_err_t i2c_lcd1602_write_char(const i2c_lcd1602_info_t * i2c_lcd1602_info, ui
     esp_err_t err = ESP_FAIL;
     if (_is_init(i2c_lcd1602_info))
     {
-        _write_data(i2c_lcd1602_info, chr);
+        err = _write_data(i2c_lcd1602_info, chr);
     }
     return err;
 }
@@ -518,9 +561,9 @@ esp_err_t i2c_lcd1602_write_string(const i2c_lcd1602_info_t * i2c_lcd1602_info, 
     esp_err_t err = ESP_FAIL;
     if (_is_init(i2c_lcd1602_info))
     {
-        for (int i = 0; string[i]; ++i)
+        for (int i = 0; err == ESP_OK && string[i]; ++i)
         {
-            _write_data(i2c_lcd1602_info, string[i]);
+            err = _write_data(i2c_lcd1602_info, string[i]);
         }
     }
     return err;
