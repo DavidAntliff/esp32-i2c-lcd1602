@@ -59,6 +59,17 @@ typedef struct
 #define I2C_LCD1602_NUM_VISIBLE_COLUMNS    16           ///< Number of columns visible at any one time
 
 // Special characters for ROM Code A00
+
+// Use the second set (0bxxxx1xxx) to avoid placing the null character within a string
+#define I2C_LCD1602_CHARACTER_CUSTOM_0     0b00001000   ///< User-defined custom symbol in index 0
+#define I2C_LCD1602_CHARACTER_CUSTOM_1     0b00001001   ///< User-defined custom symbol in index 1
+#define I2C_LCD1602_CHARACTER_CUSTOM_2     0b00001010   ///< User-defined custom symbol in index 2
+#define I2C_LCD1602_CHARACTER_CUSTOM_3     0b00001011   ///< User-defined custom symbol in index 3
+#define I2C_LCD1602_CHARACTER_CUSTOM_4     0b00001100   ///< User-defined custom symbol in index 4
+#define I2C_LCD1602_CHARACTER_CUSTOM_5     0b00001101   ///< User-defined custom symbol in index 5
+#define I2C_LCD1602_CHARACTER_CUSTOM_6     0b00001110   ///< User-defined custom symbol in index 6
+#define I2C_LCD1602_CHARACTER_CUSTOM_7     0b00001111   ///< User-defined custom symbol in index 7
+
 #define I2C_LCD1602_CHARACTER_ALPHA        0b11100000   ///< Lower-case alpha symbol
 #define I2C_LCD1602_CHARACTER_BETA         0b11100010   ///< Lower-case beta symbol
 #define I2C_LCD1602_CHARACTER_THETA        0b11110010   ///< Lower-case theta symbol
@@ -88,15 +99,6 @@ typedef enum
     I2C_LCD1602_INDEX_CUSTOM_6,                         ///< Index of seventh user-defined custom symbol
     I2C_LCD1602_INDEX_CUSTOM_7,                         ///< Index of eighth user-defined custom symbol
 } i2c_lcd1602_custom_index_t;
-
-#define I2C_LCD1602_CHARACTER_CUSTOM_0     0b00000000   ///< User-defined custom symbol in index 0
-#define I2C_LCD1602_CHARACTER_CUSTOM_1     0b00000001   ///< User-defined custom symbol in index 1
-#define I2C_LCD1602_CHARACTER_CUSTOM_2     0b00000010   ///< User-defined custom symbol in index 2
-#define I2C_LCD1602_CHARACTER_CUSTOM_3     0b00000011   ///< User-defined custom symbol in index 3
-#define I2C_LCD1602_CHARACTER_CUSTOM_4     0b00000100   ///< User-defined custom symbol in index 4
-#define I2C_LCD1602_CHARACTER_CUSTOM_5     0b00000101   ///< User-defined custom symbol in index 5
-#define I2C_LCD1602_CHARACTER_CUSTOM_6     0b00000110   ///< User-defined custom symbol in index 6
-#define I2C_LCD1602_CHARACTER_CUSTOM_7     0b00000111   ///< User-defined custom symbol in index 7
 
 /**
  * @brief Construct a new I2C-LCD1602 info instance.
@@ -274,7 +276,7 @@ esp_err_t i2c_lcd1602_move_cursor_right(const i2c_lcd1602_info_t * i2c_lcd1602_i
  * @param[in] pixelmap An 8-byte array defining the pixel map for the new character definition.
  * @return ESP_OK if successful, otherwise an error constant.
  */
-esp_err_t i2c_lcd1602_define_char(const i2c_lcd1602_info_t * i2c_lcd1602_info, i2c_lcd1602_custom_index_t index, uint8_t pixelmap[]);
+esp_err_t i2c_lcd1602_define_char(const i2c_lcd1602_info_t * i2c_lcd1602_info, i2c_lcd1602_custom_index_t index, const uint8_t pixelmap[]);
 
 /**
  * @brief Write a single character to the display at the current position of the cursor.
