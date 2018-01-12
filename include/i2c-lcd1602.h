@@ -100,6 +100,13 @@ typedef enum
     I2C_LCD1602_INDEX_CUSTOM_7,                         ///< Index of eighth user-defined custom symbol
 } i2c_lcd1602_custom_index_t;
 
+#define I2C_LCD1602_ERROR_CHECK(x) do {                                     \
+        esp_err_t rc = (x);                                                 \
+        if (rc != ESP_OK) {                                                 \
+            ESP_LOGW(TAG, "I2C error %d at %s:%d", rc, __FILE__, __LINE__); \
+        }                                                                   \
+    } while(0);
+
 /**
  * @brief Construct a new I2C-LCD1602 info instance.
  *        New instance should be initialised before calling other functions.
