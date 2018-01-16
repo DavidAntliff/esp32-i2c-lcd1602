@@ -127,8 +127,17 @@ void i2c_lcd1602_free(i2c_lcd1602_info_t ** tsl2561_info);
  *
  * @param[in] i2c_lcd1602_info Pointer to I2C-LCD1602 info instance.
  * @param[in] smbus_info Pointer to SMBus info instance.
+ * @return ESP_OK if successful, otherwise an error constant.
  */
 esp_err_t i2c_lcd1602_init(i2c_lcd1602_info_t * i2c_lcd1602_info, smbus_info_t * smbus_info, bool backlight);
+
+/**
+ * @brief Reset the display. Custom characters will be cleared.
+ *
+ * @param[in] i2c_lcd1602_info Pointer to I2C-LCD1602 info instance.
+ * @return ESP_OK if successful, otherwise an error constant.
+ */
+esp_err_t i2c_lcd1602_reset(const i2c_lcd1602_info_t * i2c_lcd1602_info);
 
 /**
  * @brief Clears entire display (clears DDRAM) and returns cursor to home position.

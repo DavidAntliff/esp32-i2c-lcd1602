@@ -201,45 +201,35 @@ static esp_err_t _write_to_expander(const i2c_lcd1602_info_t * i2c_lcd1602_info,
     return smbus_send_byte(i2c_lcd1602_info->smbus_info, data | i2c_lcd1602_info->backlight_flag);
 }
 
+// IMPORTANT - for the display to stay "in sync" it is important that errors do not interrupt the
+// 2 x nibble sequence.
+
 // clock data from expander to LCD by causing a falling edge on Enable
 static esp_err_t _strobe_enable(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t data)
 {
-    esp_err_t err = _write_to_expander(i2c_lcd1602_info, data | FLAG_ENABLE);
-    if (err == ESP_OK)
-    {
-        ets_delay_us(DELAY_ENABLE_PULSE_WIDTH);
-        err = _write_to_expander(i2c_lcd1602_info, data & ~FLAG_ENABLE);
-        if (err == ESP_OK)
-        {
-            ets_delay_us(DELAY_ENABLE_PULSE_SETTLE);
-            ESP_LOGD(TAG, "enable strobed");
-        }
-    }
-    return err;
+    esp_err_t err1 = _write_to_expander(i2c_lcd1602_info, data | FLAG_ENABLE);
+    ets_delay_us(DELAY_ENABLE_PULSE_WIDTH);
+    esp_err_t err2 = _write_to_expander(i2c_lcd1602_info, data & ~FLAG_ENABLE);
+    ets_delay_us(DELAY_ENABLE_PULSE_SETTLE);
+    return err1 ? err1 : err2;
 }
 
 // send top nibble to the LCD controller
 static esp_err_t _write_top_nibble(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t data)
 {
     ESP_LOGD(TAG, "_write_top_nibble 0x%02x", data);
-    esp_err_t err = _write_to_expander(i2c_lcd1602_info, data);
-    if (err == ESP_OK)
-    {
-        err = _strobe_enable(i2c_lcd1602_info, data);
-    }
-    return err;
+    esp_err_t err1 = _write_to_expander(i2c_lcd1602_info, data);
+    esp_err_t err2 = _strobe_enable(i2c_lcd1602_info, data);
+    return err1 ? err1 : err2;
 }
 
 // send command or data to controller
 static esp_err_t _write(const i2c_lcd1602_info_t * i2c_lcd1602_info, uint8_t value, uint8_t register_select_flag)
 {
     ESP_LOGD(TAG, "_write 0x%02x | 0x%02x", value, register_select_flag);
-    esp_err_t err = _write_top_nibble(i2c_lcd1602_info, (value & 0xf0) | register_select_flag);
-    if (err == ESP_OK)
-    {
-        err = _write_top_nibble(i2c_lcd1602_info, ((value & 0x0f) << 4) | register_select_flag);
-    }
-    return err;
+    esp_err_t err1 = _write_top_nibble(i2c_lcd1602_info, (value & 0xf0) | register_select_flag);
+    esp_err_t err2 = _write_top_nibble(i2c_lcd1602_info, ((value & 0x0f) << 4) | register_select_flag);
+    return err1 ? err1 : err2;
 }
 
 // send command to controller
@@ -309,51 +299,7 @@ esp_err_t i2c_lcd1602_init(i2c_lcd1602_info_t * i2c_lcd1602_info, smbus_info_t *
         // Wait at least 40ms after power rises above 2.7V before sending commands.
         ets_delay_us(DELAY_POWER_ON);
 
-        // put Expander into known state - Register Select and Read/Write both low
-        err = _write_to_expander(i2c_lcd1602_info, 0);
-        if (err == ESP_OK)
-        {
-            ets_delay_us(1000);
-
-            // select 4-bit mode on LCD controller - see datasheet page 46, figure 24.
-            err = _write_top_nibble(i2c_lcd1602_info, 0x03 << 4);
-            if (err == ESP_OK)
-            {
-                ets_delay_us(DELAY_INIT_1);
-                err = _write_top_nibble(i2c_lcd1602_info, 0x03 << 4);  // repeat
-                if (err == ESP_OK)
-                {
-                    ets_delay_us(DELAY_INIT_2);
-                    err = _write_top_nibble(i2c_lcd1602_info, 0x03 << 4);  // repeat
-                    if (err == ESP_OK)
-                    {
-                        ets_delay_us(DELAY_INIT_3);
-                        err = _write_top_nibble(i2c_lcd1602_info, 0x02 << 4);  // select 4-bit mode
-                        if (err == ESP_OK)
-                        {
-                            // now we can use the command()/write() functions
-                            err = _write_command(i2c_lcd1602_info, COMMAND_FUNCTION_SET | FLAG_FUNCTION_SET_MODE_4BIT | FLAG_FUNCTION_SET_LINES_2 | FLAG_FUNCTION_SET_DOTS_5X8);
-                            if (err == ESP_OK)
-                            {
-                                err = _write_command(i2c_lcd1602_info, COMMAND_DISPLAY_CONTROL | i2c_lcd1602_info->display_control_flags);
-                                if (err == ESP_OK)
-                                {
-                                    err = i2c_lcd1602_clear(i2c_lcd1602_info);
-                                    if (err == ESP_OK)
-                                    {
-                                        err = _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags);
-                                        if (err == ESP_OK)
-                                        {
-                                            err = i2c_lcd1602_home(i2c_lcd1602_info);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        err = i2c_lcd1602_reset(i2c_lcd1602_info);
     }
     else
     {
@@ -361,6 +307,98 @@ esp_err_t i2c_lcd1602_init(i2c_lcd1602_info_t * i2c_lcd1602_info, smbus_info_t *
         err = ESP_FAIL;
     }
     return err;
+}
+
+esp_err_t i2c_lcd1602_reset(const i2c_lcd1602_info_t * i2c_lcd1602_info)
+{
+    esp_err_t first_err = ESP_OK;
+    esp_err_t last_err = ESP_FAIL;
+
+    // put Expander into known state - Register Select and Read/Write both low
+    if ((last_err = _write_to_expander(i2c_lcd1602_info, 0)) != ESP_OK)
+    {
+        if (first_err == ESP_OK)
+            first_err = last_err;
+        ESP_LOGE(TAG, "reset: _write_to_expander 1 failed: %d", last_err);
+    }
+
+    ets_delay_us(1000);
+
+    // select 4-bit mode on LCD controller - see datasheet page 46, figure 24.
+    if ((last_err = _write_top_nibble(i2c_lcd1602_info, 0x03 << 4)) != ESP_OK)
+    {
+        if (first_err == ESP_OK)
+            first_err = last_err;
+        ESP_LOGE(TAG, "reset: _write_top_nibble 1 failed: %d", last_err);
+    }
+
+    ets_delay_us(DELAY_INIT_1);
+
+    // repeat
+    if ((last_err = _write_top_nibble(i2c_lcd1602_info, 0x03 << 4)) != ESP_OK)
+    {
+        if (first_err == ESP_OK)
+            first_err = last_err;
+        ESP_LOGE(TAG, "reset: _write_top_nibble 2 failed: %d", last_err);
+    }
+
+    ets_delay_us(DELAY_INIT_2);
+
+    // repeat
+    if ((last_err = _write_top_nibble(i2c_lcd1602_info, 0x03 << 4)) != ESP_OK)
+    {
+        if (first_err == ESP_OK)
+            first_err = last_err;
+        ESP_LOGE(TAG, "reset: _write_top_nibble 3 failed: %d", last_err);
+    }
+
+    ets_delay_us(DELAY_INIT_3);
+
+    // select 4-bit mode
+    if ((last_err = _write_top_nibble(i2c_lcd1602_info, 0x02 << 4)) != ESP_OK)
+    {
+        if (first_err == ESP_OK)
+            first_err = last_err;
+        ESP_LOGE(TAG, "reset: _write_top_nibble 4 failed: %d", last_err);
+    }
+
+    // now we can use the command()/write() functions
+    if ((last_err = _write_command(i2c_lcd1602_info, COMMAND_FUNCTION_SET | FLAG_FUNCTION_SET_MODE_4BIT | FLAG_FUNCTION_SET_LINES_2 | FLAG_FUNCTION_SET_DOTS_5X8)) != ESP_OK)
+    {
+        if (first_err == ESP_OK)
+            first_err = last_err;
+        ESP_LOGE(TAG, "reset: _write_command 1 failed: %d", last_err);
+    }
+
+    if ((last_err = _write_command(i2c_lcd1602_info, COMMAND_DISPLAY_CONTROL | i2c_lcd1602_info->display_control_flags)) != ESP_OK)
+    {
+        if (first_err == ESP_OK)
+            first_err = last_err;
+        ESP_LOGE(TAG, "reset: _write_command 2 failed: %d", last_err);
+    }
+
+    if ((last_err = i2c_lcd1602_clear(i2c_lcd1602_info)) != ESP_OK)
+    {
+        if (first_err == ESP_OK)
+            first_err = last_err;
+        ESP_LOGE(TAG, "reset: i2c_lcd1602_clear failed: %d", last_err);
+    }
+
+    if ((last_err = _write_command(i2c_lcd1602_info, COMMAND_ENTRY_MODE_SET | i2c_lcd1602_info->entry_mode_flags)) != ESP_OK)
+    {
+        if (first_err == ESP_OK)
+            first_err = last_err;
+        ESP_LOGE(TAG, "reset: _write_command 3 failed: %d", last_err);
+    }
+
+    if ((last_err = i2c_lcd1602_home(i2c_lcd1602_info)) != ESP_OK)
+    {
+        if (first_err == ESP_OK)
+            first_err = last_err;
+        ESP_LOGE(TAG, "reset: i2c_lcd1602_home failed: %d", last_err);
+    }
+
+    return first_err;
 }
 
 esp_err_t i2c_lcd1602_clear(const i2c_lcd1602_info_t * i2c_lcd1602_info)
