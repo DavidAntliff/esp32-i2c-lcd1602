@@ -278,13 +278,17 @@ void i2c_lcd1602_free(i2c_lcd1602_info_t ** i2c_lcd1602_info)
     }
 }
 
-esp_err_t i2c_lcd1602_init(i2c_lcd1602_info_t * i2c_lcd1602_info, smbus_info_t * smbus_info, bool backlight)
+esp_err_t i2c_lcd1602_init(i2c_lcd1602_info_t * i2c_lcd1602_info, smbus_info_t * smbus_info,
+                           bool backlight, uint8_t num_rows, uint8_t num_columns, uint8_t num_visible_columns)
 {
     esp_err_t err = ESP_FAIL;
     if (i2c_lcd1602_info != NULL)
     {
         i2c_lcd1602_info->smbus_info = smbus_info;
         i2c_lcd1602_info->backlight_flag = backlight ? FLAG_BACKLIGHT_ON : FLAG_BACKLIGHT_OFF;
+        i2c_lcd1602_info->num_rows = num_rows;
+        i2c_lcd1602_info->num_columns = num_columns;
+        i2c_lcd1602_info->num_visible_columns = num_visible_columns;
 
         // display on, no cursor, no blinking
         i2c_lcd1602_info->display_control_flags = FLAG_DISPLAY_CONTROL_DISPLAY_ON | FLAG_DISPLAY_CONTROL_CURSOR_OFF | FLAG_DISPLAY_CONTROL_BLINK_OFF;
@@ -435,13 +439,13 @@ esp_err_t i2c_lcd1602_move_cursor(const i2c_lcd1602_info_t * i2c_lcd1602_info, u
     if (_is_init(i2c_lcd1602_info))
     {
         const int row_offsets[] = { 0x00, 0x40, 0x14, 0x54 };
-        if (row > I2C_LCD1602_NUM_ROWS)
+        if (row > i2c_lcd1602_info->num_rows)
         {
-            row = I2C_LCD1602_NUM_ROWS - 1;
+            row = i2c_lcd1602_info->num_rows - 1;
         }
-        if (col > I2C_LCD1602_NUM_COLUMNS)
+        if (col > i2c_lcd1602_info->num_columns)
         {
-            col = I2C_LCD1602_NUM_COLUMNS - 1;
+            col = i2c_lcd1602_info->num_columns - 1;
         }
         err = _write_command(i2c_lcd1602_info, COMMAND_SET_DDRAM_ADDR | (col + row_offsets[row]));
     }

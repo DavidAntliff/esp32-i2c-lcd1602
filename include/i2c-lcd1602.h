@@ -50,13 +50,13 @@ typedef struct
     bool init;                                          ///< True if struct has been initialised, otherwise false
     smbus_info_t * smbus_info;                          ///< Pointer to associated SMBus info
     uint8_t backlight_flag;                             ///< Non-zero if backlight is to be enabled, otherwise zero
+    uint8_t num_rows;                                   ///< Number of configured columns
+    uint8_t num_columns;                                ///< Number of configured columns, including offscreen columns
+    uint8_t num_visible_columns;                        ///< Number of visible columns
     uint8_t display_control_flags;                      ///< Currently active display control flags
     uint8_t entry_mode_flags;                           ///< Currently active entry mode flags
 } i2c_lcd1602_info_t;
 
-#define I2C_LCD1602_NUM_ROWS               2            ///< Maximum number of supported rows for this device
-#define I2C_LCD1602_NUM_COLUMNS            40           ///< Maximum number of supported columns for this device
-#define I2C_LCD1602_NUM_VISIBLE_COLUMNS    16           ///< Number of columns visible at any one time
 
 // Special characters for ROM Code A00
 
@@ -127,9 +127,14 @@ void i2c_lcd1602_free(i2c_lcd1602_info_t ** tsl2561_info);
  *
  * @param[in] i2c_lcd1602_info Pointer to I2C-LCD1602 info instance.
  * @param[in] smbus_info Pointer to SMBus info instance.
+ * @param[in] backlight Initial backlight state.
+ * @param[in] num_rows Maximum number of supported rows for this device. Typical values include 2 (1602) or 4 (2004).
+ * @param[in] num_columns Maximum number of supported columns for this device. Typical values include 40 (1602, 2004).
+ * @param[in] num_visible_columns Number of columns visible at any one time. Typical values include 16 (1602) or 20 (2004).
  * @return ESP_OK if successful, otherwise an error constant.
  */
-esp_err_t i2c_lcd1602_init(i2c_lcd1602_info_t * i2c_lcd1602_info, smbus_info_t * smbus_info, bool backlight);
+esp_err_t i2c_lcd1602_init(i2c_lcd1602_info_t * i2c_lcd1602_info, smbus_info_t * smbus_info,
+                           bool backlight, uint8_t num_rows, uint8_t num_columns, uint8_t num_visible_columns);
 
 /**
  * @brief Reset the display. Custom characters will be cleared.
@@ -142,6 +147,7 @@ esp_err_t i2c_lcd1602_reset(const i2c_lcd1602_info_t * i2c_lcd1602_info);
 /**
  * @brief Clears entire display (clears DDRAM) and returns cursor to home position.
  *        DDRAM content is cleared, CGRAM content is not changed.
+ *
  * @param[in] i2c_lcd1602_info Pointer to initialised I2C-LCD1602 info instance.
  * @return ESP_OK if successful, otherwise an error constant.
  */
