@@ -93,6 +93,7 @@
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#include "rom/ets_sys.h"
 
 #include "i2c-lcd1602.h"
 
